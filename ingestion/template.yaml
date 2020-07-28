@@ -1,0 +1,232 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+    Datalake Solution
+
+Parameters:
+    pEnvironment:
+        Type: String
+        Description: Defines what runtime environment the stack will update.
+        AllowedValues:
+            - dev
+            - test
+            - prd
+        Default: dev
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+    Function:
+        Timeout: 5
+        Runtime: python3.8
+        Handler: app.lambda_handler
+        Tracing: Active # https://docs.aws.amazon.com/lambda/latest/dg/lambda-x-ray.html
+        Environment:
+            Variables:
+                # Powertools env vars: https://awslabs.github.io/aws-lambda-powertools-python/#environment-variables
+                LOG_LEVEL: INFO
+                POWERTOOLS_LOGGER_SAMPLE_RATE: 0.1
+                POWERTOOLS_LOGGER_LOG_EVENT: true
+                POWERTOOLS_METRICS_NAMESPACE: Datalake
+                ENVIRONMENT: !Ref pEnvironment
+
+Resources:
+    # sns topics
+    DataIngestionS3NotitifactionSNSTopic:
+        Type: AWS::SNS::Topic
+        Properties:
+            TopicName: !Sub "datalake-${AWS::AccountId}-${AWS::Region}-${pEnvironment}-s3-notification-topic"
+            Tags:
+                -   Key: SOLUTION
+                    Value: DATALAKE
+                -   Key: TEAM
+                    Value: DATALAB
+
+    DataIngestionS3NotitifactionSNSTopicPolicy:
+        Type: AWS::SNS::TopicPolicy
+        Properties:
+            Topics:
+                - !Ref DataIngestionS3NotitifactionSNSTopic
+            PolicyDocument:
+                Id: !Sub "datalake-${AWS::AccountId}-${AWS::Region}-${pEnvironment}-s3-notification-topic-policy"
+                Version: 2012-10-17
+                Statement:
+                    -   Action: sns:Publish
+                        Effect: Allow
+                        Principal:
+                            Service: s3.amazonaws.com
+                        Resource: !Ref DataIngestionS3NotitifactionSNSTopic
+                        Sid: s3-notification-topic-policy-s3-permission
+
+    # s3 buckets
+    ArtifactsS3Bucket:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: !Sub "datalake-${AWS::AccountId}-${AWS::Region}-${pEnvironment}-artifacts"
+            BucketEncryption:
+                ServerSideEncryptionConfiguration:
+                    -   ServerSideEncryptionByDefault:
+                            SSEAlgorithm: AES256
+            Tags:
+                -   Key: SOLUTION
+                    Value: DATALAKE
+                -   Key: TEAM
+                    Value: DATALAB
+
+    LogsS3Bucket:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: !Sub "datalake-${AWS::AccountId}-${AWS::Region}-${pEnvironment}-logs"
+            BucketEncryption:
+                ServerSideEncryptionConfiguration:
+                    -   ServerSideEncryptionByDefault:
+                            SSEAlgorithm: AES256
+            Tags:
+                -   Key: SOLUTION
+                    Value: DATALAKE
+                -   Key: TEAM
+                    Value: DATALAB
+
+    ReplicatedDataS3Bucket:
+        Type: AWS::S3::Bucket
+        DependsOn: DataIngestionS3NotitifactionSNSTopic
+        Properties:
+            BucketName: !Sub "datalake-${AWS::AccountId}-${AWS::Region}-${pEnvironment}-replicated-data"
+            BucketEncryption:
+                ServerSideEncryptionConfiguration:
+                    -   ServerSideEncryptionByDefault:
+                            SSEAlgorithm: AES256
+            NotificationConfiguration:
+                TopicConfigurations:
+                    -   Event: "s3:ObjectCreated:*"
+                        Topic: !Ref DataIngestionS3NotitifactionSNSTopic
+            Tags:
+                -   Key: SOLUTION
+                    Value: DATALAKE
+                -   Key: TEAM
+                    Value: DATALAB
+
+    RawDataS3Bucket:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: !Sub "datalake-${AWS::AccountId}-${AWS::Region}-${pEnvironment}-raw-data"
+            BucketEncryption:
+                ServerSideEncryptionConfiguration:
+                    -   ServerSideEncryptionByDefault:
+                            SSEAlgorithm: AES256
+            Tags:
+                -   Key: SOLUTION
+                    Value: DATALAKE
+                -   Key: TEAM
+                    Value: DATALAB
+
+    StageDataS3Bucket:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: !Sub "datalake-${AWS::AccountId}-${AWS::Region}-${pEnvironment}-stage-data"
+            BucketEncryption:
+                ServerSideEncryptionConfiguration:
+                    -   ServerSideEncryptionByDefault:
+                            SSEAlgorithm: AES256
+            Tags:
+                -   Key: SOLUTION
+                    Value: DATALAKE
+                -   Key: TEAM
+                    Value: DATALAB
+
+    AnalyticsDataS3Bucket:
+        Type: AWS::S3::Bucket
+        Properties:
+            BucketName: !Sub "datalake-${AWS::AccountId}-${AWS::Region}-${pEnvironment}-analytics-data"
+            BucketEncryption:
+                ServerSideEncryptionConfiguration:
+                    -   ServerSideEncryptionByDefault:
+                            SSEAlgorithm: AES256
+            Tags:
+                -   Key: SOLUTION
+                    Value: DATALAKE
+                -   Key: TEAM
+                    Value: DATALAB
+
+    # Lambda functions
+    DataIngestionFunction:
+        Type: AWS::Serverless::Function
+        Properties:
+            FunctionName: !Sub "datalake-${AWS::AccountId}-${AWS::Region}-${pEnvironment}-ingestion-data-handler"
+            CodeUri: data_ingestion
+            Description: It handled all raw data by staging the data ina "versioned" structure
+            Timeout: 30
+            MemorySize: 512
+            Layers:
+                - !Ref AWSWranglerLayerVersion
+                - !Ref AWSLambdaPowertoolsLayerVersion
+            Environment:
+                Variables:
+                    POWERTOOLS_SERVICE_NAME: !Sub "IngestionDataHandler"
+            Events:
+                SNS:
+                    Type: SNS
+                    Properties:
+                        Topic: !Ref DataIngestionS3NotitifactionSNSTopic
+            Tags:
+                SOLUTION: DATALAKE
+                TEAM: DATALAB
+
+    DataIngestionFunctionAdditionalPermission:
+        Type: AWS::IAM::Policy
+        Properties:
+            PolicyName: S3
+            PolicyDocument:
+                Version: 2012-10-17
+                Statement:
+                    -   Effect: Allow
+                        Action: s3:PutObject
+                        Resource: !GetAtt RawDataS3Bucket.Arn
+            Roles:
+                - !Ref DataIngestionFunctionRole
+
+    # Layers
+    AWSWranglerLayerVersion:
+        Type: AWS::Serverless::LayerVersion
+        Properties:
+            LayerName: PythonAWSWrangler
+            ContentUri: layers/awswrangler/awswrangler-layer-1.6.3-py3.8.zip
+            CompatibleRuntimes:
+                - python3.8
+            RetentionPolicy: Delete
+
+    AWSLambdaPowertoolsLayerVersion:
+        Type: AWS::Serverless::LayerVersion
+        Properties:
+            LayerName: PythonAWSLambdaPowertools
+            ContentUri: layers/aws-lambda-powertools/build/
+            CompatibleRuntimes:
+                - python3.8
+            RetentionPolicy: Delete
+
+Outputs:
+    DataIngestionFunction:
+        Value: !GetAtt DataIngestionFunction.Arn
+
+    DataIngestionFunctionRole:
+        Value: !GetAtt DataIngestionFunctionRole.Arn
+
+    RawDataS3Bucket:
+        Value: !GetAtt RawDataS3Bucket.Arn
+
+    StageDataS3Bucket:
+        Value: !GetAtt StageDataS3Bucket.Arn
+
+    AnalyticsDataS3Bucket:
+        Value: !GetAtt AnalyticsDataS3Bucket.Arn
+
+    ReplicatedDataS3Bucket:
+        Value: !GetAtt ReplicatedDataS3Bucket.Arn
+
+    ArtifactsS3Bucket:
+        Value: !GetAtt ArtifactsS3Bucket.Arn
+
+    LogsS3Bucket:
+        Value: !GetAtt LogsS3Bucket.Arn
+
+    DataIngestionS3NotitifactionSNSTopic:
+        Value: !Ref DataIngestionS3NotitifactionSNSTopic
