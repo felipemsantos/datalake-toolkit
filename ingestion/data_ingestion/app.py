@@ -1,10 +1,10 @@
 import json
 import os
+import urllib
 from datetime import datetime
 
 import awswrangler as wr
 import boto3
-import pandas as pd
 from aws_lambda_powertools import Logger, Metrics, Tracer
 from aws_lambda_powertools.metrics import MetricUnit
 
@@ -16,7 +16,7 @@ ENVIRONMENT = os.getenv("ENVIRONMENT", None)
 tracer = Tracer()
 logger = Logger()
 metrics = Metrics()
-metrics.add_dimension(name="environment", value=ENVIRONMENT)
+metrics.add_dimension(name="Environment", value=ENVIRONMENT)
 
 # Global variables are reused across execution contexts (if available)
 AWS_PROFILE = os.getenv("AWS_PROFILE", None)
@@ -43,17 +43,16 @@ def lambda_handler(event, context):
         ingestion_time = current_timestamp.strftime("%H:%M:%S")
 
         result = {
-            "incoming_bytes": 0,
-            "incoming_records": 0
+            "IncomingBytes": 0,
+            "IncomingRecords": 0
         }
-        # orders-cached/account=mercatto/1050320422689-01
         for sns_event in event["Records"]:
             sns_message = json.loads(sns_event["Sns"]["Message"])
             for s3_notification in sns_message["Records"]:
                 s3_event = s3_notification["s3"]
                 source_bucket = s3_event["bucket"]["name"]
-                file_path_source = s3_event["object"]["key"]
-                result["incoming_bytes"] += s3_event["object"]["size"]
+                file_path_source = urllib.parse.unquote_plus(s3_event["object"]["key"])
+                result["IncomingBytes"] += int(s3_event["object"]["size"])
                 _, _, file_name = file_path_source.split("/")
                 source_path = f"s3://{source_bucket}/{file_path_source}"
                 logger.info(f"Processing {source_path}")
@@ -61,11 +60,12 @@ def lambda_handler(event, context):
                 target_path = f"s3://{TARGET_BUCKET}/{DATA_SOURCE}/{TABLE_NAME}/ingestion_date={ingestion_date}/ingestion_time={ingestion_time}/{file_name}-{current_timestamp.isoformat()}.json"
                 logger.info(f"Storing data at {target_path}")
                 wr.s3.to_json(df=data_frame, path=target_path)
-                result["incoming_records"] += 1
+                result["IncomingRecords"] += 1
 
-        metrics.add_metric(name="incoming_bytes", unit=MetricUnit.Bytes, value=result["incoming_bytes"])
-        metrics.add_metric(name="incoming_records", unit=MetricUnit.Count, value=result["incoming_records"])
+                metrics.add_metric(name="IncomingBytes", unit=MetricUnit.Bytes, value=result["IncomingBytes"])
+                metrics.add_metric(name="IncomingRecords", unit=MetricUnit.Count, value=result["IncomingRecords"])
         return result
     except Exception as e:
+        metrics.add_metric(name="IngestionError", unit=MetricUnit.Count, value=1)
         logger.exception(e)
         raise e
