@@ -62,8 +62,8 @@ def lambda_handler(event, context):
                 wr.s3.to_json(df=data_frame, path=target_path)
                 result["IncomingRecords"] += 1
 
-                metrics.add_metric(name="IncomingBytes", unit=MetricUnit.Bytes, value=result["IncomingBytes"])
-                metrics.add_metric(name="IncomingRecords", unit=MetricUnit.Count, value=result["IncomingRecords"])
+        metrics.add_metric(name="IncomingBytes", unit=MetricUnit.Bytes, value=result["IncomingBytes"])
+        metrics.add_metric(name="IncomingRecords", unit=MetricUnit.Count, value=result["IncomingRecords"])
         return result
     except Exception as e:
         metrics.add_metric(name="IngestionError", unit=MetricUnit.Count, value=1)
