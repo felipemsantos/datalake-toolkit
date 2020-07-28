@@ -161,7 +161,11 @@ Resources:
                 - !Ref AWSLambdaPowertoolsLayerVersion
             Environment:
                 Variables:
-                    POWERTOOLS_SERVICE_NAME: !Sub "IngestionDataHandler"
+                    POWERTOOLS_SERVICE_NAME: "IngestionDataHandler"
+                    TARGET_BUCKET: !Ref RawDataS3Bucket
+                    DATA_SOURCE: oms
+                    TABLE_NAME: orders
+                    ENVIRONMENT: !Ref pEnvironment
             Events:
                 SNS:
                     Type: SNS
@@ -179,8 +183,17 @@ Resources:
                 Version: 2012-10-17
                 Statement:
                     -   Effect: Allow
-                        Action: s3:PutObject
-                        Resource: !GetAtt RawDataS3Bucket.Arn
+                        Action:
+                            - s3:ListBucket
+                            - s3:GetObject
+                        Resource:
+                            - !GetAtt ReplicatedDataS3Bucket.Arn
+                            - !Join ["/", [!GetAtt ReplicatedDataS3Bucket.Arn, "*"]]
+                    -   Effect: Allow
+                        Action:
+                            - s3:PutObject
+                        Resource:
+                            - !Join ["/", [!GetAtt RawDataS3Bucket.Arn, "*"]]
             Roles:
                 - !Ref DataIngestionFunctionRole
 
