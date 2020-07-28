@@ -28,15 +28,6 @@ boto3.setup_default_session(region_name=AWS_REGION, profile_name=AWS_PROFILE)
 @logger.inject_lambda_context(log_event=True)
 @tracer.capture_lambda_handler
 def lambda_handler(event, context):
-    """
-    It handles S3 notifications delivered by a SNS Topic
-    :param event: A SNS Topic Event
-    :param context: The Lambda Context
-    :return: {
-            "incoming_bytes": 0,
-            "incoming_records": 0
-        }
-    """
     try:
         current_timestamp = datetime.utcnow()
         ingestion_date = current_timestamp.strftime("%Y-%m-%d")
