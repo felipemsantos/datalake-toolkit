@@ -1,0 +1,9 @@
+{
+  "hive_database_raw": "db_mdb_raw_dev",
+  "hive_table_raw": "tb_call_req",
+  "s3_object_raw": "s3://customer-bigdata-stage-dev/servicedesk/customer/ca_sdm/tb_call_req/latest/call_req.csv",
+  "hive_database_analytics": "db_mdb_dev",
+  "hive_table_analytics": "tb_call_req",
+  "s3_object_analytics": "s3://customer-bigdata-analytics-dev/servicedesk/customer/ca_sdm/tb_call_req/",
+  "debug": true
+}

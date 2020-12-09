@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+
+Parameters:
+    pDevEndpointName:
+        Type: String
+        DefaultValue: glue-dev-endpoint
+    pS3ConfigBucket:
+        Type: String
+        DefaultValue: datalake-dev-artifacts
+    pS3GlueDevEndpointConfigFile:
+        Type: String
+        DefaultValue: config/glue/dev-endpoint.json
+
+# More info about Globals: https://github.com/awslabs/serverless-application-model/blob/master/docs/globals.rst
+Globals:
+    Function:
+        Timeout: 5ei
+        Runtime: python3.8
+        Tracing: Active # https://docs.aws.amazon.com/lambda/latest/dg/lambda-x-ray.html
+        Environment:
+            Variables:
+                # Powertools env vars: https://awslabs.github.io/aws-lambda-powertools-python/#environment-variables
+                LOG_LEVEL: INFO
+                POWERTOOLS_LOGGER_SAMPLE_RATE: 0.1
+                POWERTOOLS_LOGGER_LOG_EVENT: true
+                POWERTOOLS_METRICS_NAMESPACE: MyServerlessApplication
+                POWERTOOLS_SERVICE_NAME: hello
+
+Resources:
+    GlueDevEndpointStarterFunction:
+        Type: AWS::Serverless::Function # More info about Function Resource: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#awsserverlessfunction
+        Properties:
+            Handler: main.lambda_handler
+            CodeUri: dev_endpoint_starter
+            Events:
+                CloudWatchSchedule:
+                    Type: Schedule
+                    Properties:
+                        Schedule: cron(0 6 ? * MON-FRI *)
+                        Name: GlueDevEndpointStarterSchedule
+                        Enabled: True
+            Environment: # More info about Env Vars: https://github.com/awslabs/serverless-application-model/blob/master/versions/2016-10-31.md#environment-object
+                Variables:
+                    DEV_ENDPOINT_NAME: $Ref
+                    S3_CONFIG_BUCKET: MY_S3_BUCKET
+                    S3_OBJECT_KEY: config/glue/dev_endpoint.json
+            Tags:
+                SOLUTION: MyServerlessApplication
+                SOLUTION_MODULE: MyHelloWorldFunction
+
+    # Sample policy to add additional permissions to your Lambda
+    HelloWorldFunctionAdditionalPermission:
+        Type: "AWS::IAM::Policy"
+        Properties:
+            PolicyName: "root"
+            PolicyDocument:
+                Version: "2012-10-17"
+                Statement:
+                    -
+                        Effect: "Allow"
+                        Action: "ssm:GetParameters"
+                        Resource: "*"
+            Roles:
+                - !Ref HelloWorldFunctionRole # Sample policy to demonstrate Implicit IAM Role created with SAM
+
+Outputs:
+    HelloWorldApigwURL:
+      Description: "API Gateway endpoint URL for Prod environment for Hello World Function"
+      Value: !Sub "https://${ServerlessRestApi}.execute-api.${AWS::Region}.amazonaws.com/Prod/hello"
+
+    HelloWorldFunction:
+      Description: "Hello World Lambda Function ARN"
+      Value: !GetAtt HelloWorldFunction.Arn
+

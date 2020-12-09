@@ -1,0 +1,8 @@
+{
+  "hive_database_raw": "bucket_raw",
+  "hive_table_raw": "table1",
+  "s3_object_raw": "s3://bucket-raw/data_source1/table1/year=2018/month=04/day=16/",
+  "hive_database_analytics": "company_analytics_dev",
+  "hive_table_analytics": "table1_parquet",
+  "s3_object_analytics": "s3://bucket-analytics/sales/table1_parquet/"
+}

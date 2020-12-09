@@ -1,0 +1,8 @@
+{
+  "hive_database_raw": "db_stage_dev",
+  "hive_table_raw": "tb_iba_laminacao",
+  "s3_object_raw": "s3://customer-stage-dev/iba/br/laminacao/dt=*",
+  "hive_database_analytics": "db_iba_dev",
+  "hive_table_analytics": "tb_iba_laminacao_parquet",
+  "s3_object_analytics": "s3://customer-datalake-dev/br/iba/tb_iba_laminacao_parquet/"
+}

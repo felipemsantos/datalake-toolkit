@@ -1,0 +1,19 @@
+{
+  "account": "757904534627",
+  "region": "us-east-1",
+  "detail": {
+    "stepId": "s-LP3I51V1R3VS",
+    "severity": "INFO",
+    "clusterId": "j-3QE8PKU44SAIE",
+    "actionOnFailure": "CONTINUE",
+    "state": "COMPLETED",
+    "message": "Step s-LP3I51V1R3VS (s3://btg-datalake-stage/v...) in Amazon EMR cluster j-3QE8PKU44SAIE (centauro-emr-datalake) completed execution at 2017-09-19 16:29 UTC. The step started running at 2017-09-19 16:29 UTC and took 0 minutes to complete.",
+    "name": "s3://it.centauro.odl.stage/doo/ga/ga_metrics/dt=2017-10-31/GA_2017_10_31_old.csv"
+  },
+  "detail-type": "EMR Step Status Change",
+  "source": "aws.emr",
+  "version": "0",
+  "time": "2017-09-19T16:30:19Z",
+  "id": "2e9fc543-eff8-5d3f-cd16-c06d135aa04d",
+  "resources": []
+}

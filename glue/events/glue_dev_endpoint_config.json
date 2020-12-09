@@ -1,0 +1,12 @@
+{
+  "EndpointName": "glue-dev-endpoint-test",
+  "RoleArn": "arn:aws:iam::368241840722:role/service-role/AWSGlueServiceRole-Datalake",
+  "NumberOfNodes": 5,
+  "GlueVersion": "1.0",
+  "ExtraPythonLibsS3Path": "s3://santofel-datalake-artifacts/libs/python/awswrangler-1.0.4-py3-none-any.whl",
+  "Arguments": {
+    "--enable-glue-datacatalog": " ",
+    "--enable-spark-ui": "true",
+    "--spark-event-logs-path": "s3://santofel-datalake-logs/glue/dev-endpoints/",
+    "GLUE_PYTHON_VERSION": "3"  }
+}
